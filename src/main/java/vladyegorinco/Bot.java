@@ -76,7 +76,7 @@ public class Bot extends TelegramLongPollingBot {
             sendText(id, "Welcome to Task Manager! \nSee what I can do by typing /help\n");
 
         } else if (msg.getText().equals("/help")) {
-            sendText(id, "to be done");
+            sendText(id, "/addtask - Add a task\n/removetask - Remove a task\n/showtasklist - Show list of tasks");
         } else if (msg.getText().equalsIgnoreCase("hello")  || msg.getText().equalsIgnoreCase("hi") ){
             sendText(id, "Hi there!");
         } else if (msg.getText().equalsIgnoreCase("привет") || msg.getText().equalsIgnoreCase("привет!")  ){
