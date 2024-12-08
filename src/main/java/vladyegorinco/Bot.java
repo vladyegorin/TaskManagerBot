@@ -20,7 +20,8 @@ import java.util.Properties;
 
 public class Bot extends TelegramLongPollingBot {
     private String botToken;
-
+    private boolean waitingForUserResponse = false;
+    private Long currentUserWaiting = null;
 
 
     private final InlineKeyboardButton redTag = InlineKeyboardButton.builder().text("🔴 - Important").callbackData("red").build();
@@ -63,16 +64,13 @@ public class Bot extends TelegramLongPollingBot {
 
             if (msg.hasText()) {
                 System.out.println("Text message: " + msg.getText());
-                handleTextMessages(msg, id); // Calls the function to handle text messages
+                handleTextMessages(msg, id); // Handle the text message
             } else {
-                IDontUnderstand(msg, id); // Calls the function to handle media or other types of messages
+                IDontUnderstand(msg, id);
             }
-
-
         }
 
         if (update.hasCallbackQuery()) {
-            // Handle the button click from the inline keyboard
             try {
                 handleCallbackQuery(update.getCallbackQuery());
             } catch (TelegramApiException e) {
@@ -98,30 +96,37 @@ public class Bot extends TelegramLongPollingBot {
     }
 
 
-    private void handleTextMessages(Message msg, Long id){
+    private void handleTextMessages(Message msg, Long id) {
         if (msg.getText().equals("/start")) {
             sendText(id, "Welcome to Task Manager! \nSee what I can do by typing /help\n");
 
-        } else if(msg.getText().equals("/addtask")){
-            sendMenu(id,"<b><i> Choose an importnace tag for your task</i></b>", keyboardImportanceTag);
-        }
-        else if (msg.getText().equals("/help")) {
+        } else if (msg.getText().equals("/addtask")) {
+            sendMenu(id, "<b><i> Choose an importance tag for your task</i></b>", keyboardImportanceTag);
+        } else if (msg.getText().equals("/removetask")) {
+            sendText(id, "to be done");
+        } else if (msg.getText().equals("/showtasklist")) {
+            sendText(id, "to be done");
+        } else if (msg.getText().equals("/help")) {
             sendText(id, "/addtask - Add a task\n/removetask - Remove a task\n/showtasklist - Show list of tasks");
-        } else if (msg.getText().equalsIgnoreCase("hello")  || msg.getText().equalsIgnoreCase("hi") ){
+        } else if (msg.getText().equalsIgnoreCase("hello") || msg.getText().equalsIgnoreCase("hi")) {
             sendText(id, "Hi there!");
-        } else if (msg.getText().equalsIgnoreCase("привет") || msg.getText().equalsIgnoreCase("привет!")  ){
-            sendText(id,"Приветики!");
-        }
-        else if (msg.getText().equalsIgnoreCase("Thank you")){
-            sendText(id,"You are welcome!");
-        }
-        else if (msg.getText().equalsIgnoreCase("how are you") || msg.getText().equalsIgnoreCase("how are you?")){
-            sendText(id,"I'm good, thank you!");
-        }
-        else{
+        } else if (msg.getText().equalsIgnoreCase("привет") || msg.getText().equalsIgnoreCase("привет!")) {
+            sendText(id, "Приветики!");
+        } else if (msg.getText().equalsIgnoreCase("Thank you")) {
+            sendText(id, "You are welcome!");
+        } else if (msg.getText().equalsIgnoreCase("how are you") || msg.getText().equalsIgnoreCase("how are you?")) {
+            sendText(id, "I'm good, thank you!");
+        } else if (waitingForUserResponse && currentUserWaiting != null && currentUserWaiting.equals(id)) {
+            // Handle response only if in waiting state and the user matches
+            System.out.println("User response received: " + msg.getText());
+            sendText(id, "You described the task as: " + msg.getText()+"\nSee the list of all tasks by typing \n/showtasklist");
+
+            // Reset the flag after processing the response
+            waitingForUserResponse = false;
+            currentUserWaiting = null;
+        } else {
             IDontUnderstand(msg, id);
         }
-
     }
 
 
@@ -139,41 +144,46 @@ public class Bot extends TelegramLongPollingBot {
 
     private void handleCallbackQuery(CallbackQuery callbackQuery) throws TelegramApiException {
         Long chatId = callbackQuery.getMessage().getChatId();
-        String queryId = callbackQuery.getId(); // Needed to close the query
-        String data = callbackQuery.getData(); // Identifies which button was pressed
-        int messageId = callbackQuery.getMessage().getMessageId(); // Original message ID
+        String queryId = callbackQuery.getId();
+        String data = callbackQuery.getData();
+        int messageId = callbackQuery.getMessage().getMessageId();
 
-        // Log the user's choice to the console
+        // Log user choice
         System.out.println("User selected: " + data);
 
-        // Acknowledge the callback query to stop the loading spinner
+        // Acknowledge the callback query
         AnswerCallbackQuery closeQuery = AnswerCallbackQuery.builder()
                 .callbackQueryId(queryId)
                 .build();
 
-        // Clear the inline keyboard by setting the markup to null
         EditMessageReplyMarkup clearKeyboard = EditMessageReplyMarkup.builder()
                 .chatId(chatId.toString())
                 .messageId(messageId)
-                .replyMarkup(null) // Remove the keyboard
+                .replyMarkup(null)
                 .build();
+
         String text;
-        if(data.equals("red")){
+        if (data.equals("red")) {
             text = "Describe the task (🔴 - Important)";
-        } else{
+            waitingForUserResponse = true;
+            currentUserWaiting = chatId; // Set the user who is expected to respond
+        } else {
             text = "Describe the task (🟢 - Not Important)";
+            waitingForUserResponse = true;
+            currentUserWaiting = chatId; // Set the user who is expected to respond
         }
+
         EditMessageText newMessageText = EditMessageText.builder()
                 .chatId(chatId.toString())
                 .messageId(messageId)
                 .text(text)
                 .build();
-        // Execute the updates
-        execute(closeQuery);        // Close the callback query
-        execute(clearKeyboard);     // Remove the inline keyboard
-        execute(newMessageText);    // Show the new message to the user
-    }
 
+        // Execute actions
+        execute(closeQuery);
+        execute(clearKeyboard);
+        execute(newMessageText);
+    }
 
 
 
