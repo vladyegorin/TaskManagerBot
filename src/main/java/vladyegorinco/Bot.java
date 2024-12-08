@@ -119,7 +119,7 @@ public class Bot extends TelegramLongPollingBot {
         } else if (waitingForUserResponse && currentUserWaiting != null && currentUserWaiting.equals(id)) {
             // Handle response only if in waiting state and the user matches
             System.out.println("User response received: " + msg.getText());
-            sendText(id, "You described the task as: " + msg.getText()+"\nSee the list of all tasks by typing \n/showtasklist");
+            sendText(id, "You added a task: " + msg.getText()+"\nSee the list of all tasks by typing \n/showtasklist");
 
             // Reset the flag after processing the response
             waitingForUserResponse = false;
@@ -188,7 +188,7 @@ public class Bot extends TelegramLongPollingBot {
 
 
     private void IDontUnderstand(Message msg, Long id) {
-        sendText(id, "I don't understand. Try /help to see what I can do.");
+        sendText(id, "I don't understand. Type /help to see what I can do.");
 
     }
 
