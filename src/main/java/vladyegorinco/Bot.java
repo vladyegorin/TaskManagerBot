@@ -1,7 +1,11 @@
 package vladyegorinco;
 
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -19,13 +23,12 @@ public class Bot extends TelegramLongPollingBot {
 
 
 
-    private final InlineKeyboardButton redTag = InlineKeyboardButton.builder().text("🔴 - important").callbackData("red").build();
-    private final InlineKeyboardButton greenTag = InlineKeyboardButton.builder().text("🟢 - not important").callbackData("green").build();
+    private final InlineKeyboardButton redTag = InlineKeyboardButton.builder().text("🔴 - Important").callbackData("red").build();
+    private final InlineKeyboardButton greenTag = InlineKeyboardButton.builder().text("🟢 - Not Important").callbackData("green").build();
     private final InlineKeyboardMarkup keyboardImportanceTag = InlineKeyboardMarkup.builder().
             keyboardRow(List.of(redTag)).
             keyboardRow(List.of(greenTag)).
             build();
-
 
     @Override
     public String getBotUsername() {
@@ -63,6 +66,17 @@ public class Bot extends TelegramLongPollingBot {
                 handleTextMessages(msg, id); // Calls the function to handle text messages
             } else {
                 IDontUnderstand(msg, id); // Calls the function to handle media or other types of messages
+            }
+
+
+        }
+
+        if (update.hasCallbackQuery()) {
+            // Handle the button click from the inline keyboard
+            try {
+                handleCallbackQuery(update.getCallbackQuery());
+            } catch (TelegramApiException e) {
+                throw new RuntimeException(e);
             }
         }
     }
@@ -122,6 +136,45 @@ public class Bot extends TelegramLongPollingBot {
             throw new RuntimeException(e);
         }
     }
+
+    private void handleCallbackQuery(CallbackQuery callbackQuery) throws TelegramApiException {
+        Long chatId = callbackQuery.getMessage().getChatId();
+        String queryId = callbackQuery.getId(); // Needed to close the query
+        String data = callbackQuery.getData(); // Identifies which button was pressed
+        int messageId = callbackQuery.getMessage().getMessageId(); // Original message ID
+
+        // Log the user's choice to the console
+        System.out.println("User selected: " + data);
+
+        // Acknowledge the callback query to stop the loading spinner
+        AnswerCallbackQuery closeQuery = AnswerCallbackQuery.builder()
+                .callbackQueryId(queryId)
+                .build();
+
+        // Clear the inline keyboard by setting the markup to null
+        EditMessageReplyMarkup clearKeyboard = EditMessageReplyMarkup.builder()
+                .chatId(chatId.toString())
+                .messageId(messageId)
+                .replyMarkup(null) // Remove the keyboard
+                .build();
+        String text;
+        if(data.equals("red")){
+            text = "Describe the task (🔴 - Important)";
+        } else{
+            text = "Describe the task (🟢 - Not Important)";
+        }
+        EditMessageText newMessageText = EditMessageText.builder()
+                .chatId(chatId.toString())
+                .messageId(messageId)
+                .text(text)
+                .build();
+        // Execute the updates
+        execute(closeQuery);        // Close the callback query
+        execute(clearKeyboard);     // Remove the inline keyboard
+        execute(newMessageText);    // Show the new message to the user
+    }
+
+
 
 
     private void IDontUnderstand(Message msg, Long id) {
