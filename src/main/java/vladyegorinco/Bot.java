@@ -15,6 +15,10 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Properties;
 
@@ -61,7 +65,19 @@ public class Bot extends TelegramLongPollingBot {
             System.out.println("\nNew message!");
             System.out.println("User ID: " + id);
             System.out.println("Username: " + user.getUserName());
+            //System.out.println((msg.getDate()));
 
+            int unixTimestamp = msg.getDate();
+
+            // Convert to LocalDateTime using the system's default time zone
+            LocalDateTime userDate = Instant.ofEpochSecond(unixTimestamp)
+                    .atZone(ZoneId.systemDefault()) // Adjust this if you know the user's timezone
+                    .toLocalDateTime();
+
+            // Format as YYYY-MM-DD for storage in the database
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            String formattedDate = userDate.format(formatter); // Use format() to convert LocalDateTime to a String
+            System.out.println("Message date (formatted): " + formattedDate);
             if (msg.hasText()) {
                 System.out.println("Text message: " + msg.getText());
                 handleTextMessages(msg, id); // Handle the text message
