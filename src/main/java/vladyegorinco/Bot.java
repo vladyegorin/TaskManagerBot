@@ -231,7 +231,7 @@ public class Bot extends TelegramLongPollingBot {
                         System.out.println("Connected to database with URL: " + dbUrl);
 
                         // Ensure table exists (create schema if not already present)
-                        //initializeDatabase();
+                        initializeDatabase();
                     } catch (ClassNotFoundException e) {
                         e.printStackTrace();
                         throw new SQLException("SQLite JDBC Driver not found.");
@@ -243,7 +243,22 @@ public class Bot extends TelegramLongPollingBot {
     }
 
 
-
+    private static void initializeDatabase() {
+       String schemaSql = "CREATE TABLE IF NOT EXISTS Tasks (" +
+                "userID INTEGER NOT NULL, " +
+                "taskName TEXT NOT NULL, " +
+                "tag TEXT NOT NULL, " +
+                "dateCreated TEXT NOT NULL" +
+              ");";
+       try (PreparedStatement stmt = getConnection().prepareStatement(schemaSql)) {
+            stmt.execute();
+            System.out.println("Ensured database schema is ready.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.err.println("Error while ensuring database schema: " + e.getMessage());
+        }
+        System.out.println("Database is assumed to be initialized.");
+    }
 
     // Optimized database save function
     private void saveTaskToDb(Long userId, String taskName, String tag, String formattedDate) {
