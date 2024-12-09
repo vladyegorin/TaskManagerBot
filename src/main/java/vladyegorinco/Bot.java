@@ -311,14 +311,7 @@ public class Bot extends TelegramLongPollingBot {
             pstmt.setLong(1, userId);
             pstmt.setString(2,tag);
             try (var rs = pstmt.executeQuery()) {
-                String tagEmoji = "";
-                if(tag.equals("red")){
-                    tagEmoji = " 🔴 ";
-                }
-                else{
-                    tagEmoji = " 🟢 ";
-                }
-                StringBuilder tasks = new StringBuilder("Your " + tagEmoji + " Tasks:\n\n");
+                StringBuilder tasks = new StringBuilder("Your " + (tag.equals("red") ? "🔴" : "🟢") + " Tasks:\n\n");
                 int taskCount = 0;
 
                 while (rs.next()) {
