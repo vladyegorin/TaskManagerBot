@@ -98,7 +98,7 @@ public class Bot extends TelegramLongPollingBot {
 
     private void handleTextMessages(Message msg, Long id) {
         if (msg.getText().equals("/start")) {
-            sendText(id, "Welcome to Task Manager! \nSee what I can do by typing /help\n");
+            sendText(id, "Welcome to Task Manager! \nSee what I can do by typing \n/help\n");
 
         } else if (msg.getText().equals("/addtask")) {
             sendMenu(id, "<b><i> Choose an importance tag for your task</i></b>", keyboardImportanceTag);
