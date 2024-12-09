@@ -117,7 +117,7 @@ public class Bot extends TelegramLongPollingBot {
         } else if (msg.getText().equals("/removetask")) {
             sendText(id, "to be done");
         } else if (msg.getText().equals("/showtasklist")) {
-            sendText(id, "to be done");
+            printTasks(id);
         } else if (msg.getText().equals("/help")) {
             sendText(id, "/addtask - Add a task\n/removetask - Remove a task\n/showtasklist - Show list of tasks");
         } else if (msg.getText().equalsIgnoreCase("hello") || msg.getText().equalsIgnoreCase("hi")) {
@@ -223,7 +223,7 @@ public class Bot extends TelegramLongPollingBot {
                         System.out.println("Connected to database with URL: " + dbUrl);
 
                         // Ensure table exists (create schema if not already present)
-                        initializeDatabase();
+                        //initializeDatabase();
                     } catch (ClassNotFoundException e) {
                         e.printStackTrace();
                         throw new SQLException("SQLite JDBC Driver not found.");
@@ -235,21 +235,22 @@ public class Bot extends TelegramLongPollingBot {
     }
 
     // Validate & ensure database schema is set up
-    private static void initializeDatabase() {
-        String schemaSql = "CREATE TABLE IF NOT EXISTS Tasks (" +
-                "userID INTEGER NOT NULL, " +
-                "taskName TEXT NOT NULL, " +
-                "tag TEXT NOT NULL, " +
-                "dateCreated TEXT NOT NULL" +
-                ");";
-        try (PreparedStatement stmt = getConnection().prepareStatement(schemaSql)) {
-            stmt.execute();
-            System.out.println("Ensured database schema is ready.");
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.err.println("Error while ensuring database schema: " + e.getMessage());
-        }
-    }
+//    private static void initializeDatabase() {
+////        String schemaSql = "CREATE TABLE IF NOT EXISTS Tasks (" +
+////                "userID INTEGER NOT NULL, " +
+////                "taskName TEXT NOT NULL, " +
+////                "tag TEXT NOT NULL, " +
+////                "dateCreated TEXT NOT NULL" +
+////                ");";
+////        try (PreparedStatement stmt = getConnection().prepareStatement(schemaSql)) {
+////            stmt.execute();
+////            System.out.println("Ensured database schema is ready.");
+////        } catch (SQLException e) {
+////            e.printStackTrace();
+////            System.err.println("Error while ensuring database schema: " + e.getMessage());
+////        }
+//        System.out.println("Database is assumed to be initialized.");
+//    }
 
 
     // Optimized database save function
@@ -279,7 +280,41 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
-    private String getFormattedDate(Integer unixTimestamp) {
+    private void printTasks(Long userId) {
+        String sql = "SELECT taskName, tag, dateCreated FROM Tasks WHERE userID = ? ORDER BY CASE WHEN tag = 'red' THEN 1 ELSE 2 END;";
+
+        try (PreparedStatement pstmt = getConnection().prepareStatement(sql)) {
+            pstmt.setLong(1, userId);
+
+            try (var rs = pstmt.executeQuery()) {
+                StringBuilder tasks = new StringBuilder("Your Tasks:\n\n");
+                int taskCount = 0;
+
+                while (rs.next()) {
+                    taskCount++;
+                    String taskName = rs.getString("taskName");
+                    String tag = rs.getString("tag").equals("red") ? "🔴 Important" : "🟢 Not Important";
+                    String dateCreated = rs.getString("dateCreated");
+
+                    tasks.append(taskCount).append(". ").append(taskName)
+                            .append(" (").append(tag).append(", Created: ").append(dateCreated).append(")\n");
+                }
+
+                if (taskCount == 0) {
+                    sendText(userId, "You don't have any tasks yet. Add a new task using /addtask.");
+                } else {
+                    sendText(userId, tasks.toString());
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            sendText(userId, "An error occurred while retrieving your tasks. Please try again later.");
+        }
+    }
+
+
+    private String getFormattedDate(Integer unixTimestamp) {//formatting time to dd/mm/yyyy format
         if (unixTimestamp == null || unixTimestamp <= 0) {
             // Return current date in UTC
             return LocalDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
@@ -298,6 +333,7 @@ public class Bot extends TelegramLongPollingBot {
             return LocalDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         }
     }
+
 
     private void IDontUnderstand(Message msg, Long id) {
         sendText(id, "I don't understand. Type /help to see what I can do.");
