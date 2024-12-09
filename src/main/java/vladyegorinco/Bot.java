@@ -15,16 +15,12 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.sql.*;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 public class Bot extends TelegramLongPollingBot {
 
@@ -33,6 +29,9 @@ public class Bot extends TelegramLongPollingBot {
     private boolean waitingForUserResponse = false;
     private Long currentUserWaiting = null;
     private String selectedTag = null;
+    private boolean waitingForTaskNumber = false; // Indicates bot is waiting for a task number
+    private Long userWaitingForTaskNumber = null; // Tracks the user who is expected to respond
+    private List<Integer> taskIdList = new ArrayList<>();
 
     private final InlineKeyboardButton redTag = InlineKeyboardButton.builder().text("🔴 - Important").callbackData("red").build();
     private final InlineKeyboardButton greenTag = InlineKeyboardButton.builder().text("🟢 - Not Important").callbackData("green").build();
@@ -115,12 +114,20 @@ public class Bot extends TelegramLongPollingBot {
         } else if (msg.getText().equals("/addtask")) {
             sendMenu(id, "<b><i> Choose an importance tag for your task</i></b>", keyboardImportanceTag);
         } else if (msg.getText().equals("/removetask")) {
-            sendText(id, "to be done");
-        } else if (msg.getText().equals("/showtasklist")) {
+            showTasksToRemove(id);
+        } else if (waitingForTaskNumber && userWaitingForTaskNumber != null && userWaitingForTaskNumber.equals(id)) {
+            removeTask(id, msg.getText().trim());
+        }  else if (msg.getText().equals("/showtasklist")) {
             printTasks(id);
         } else if (msg.getText().equals("/help")) {
-            sendText(id, "/addtask - Add a task\n/removetask - Remove a task\n/showtasklist - Show list of tasks");
-        } else if (msg.getText().equalsIgnoreCase("hello") || msg.getText().equalsIgnoreCase("hi")) {
+            sendText(id, "/addtask - Add a task\n/removetask - Remove a task\n/showtasklist - Show list of tasks");//update
+        } else if(msg.getText().equals("/showimportant")){
+            showOnlyOneTagTask(id,"red");
+        }
+        else if(msg.getText().equals("/shownotimportant")){
+            showOnlyOneTagTask(id,"green");
+        }
+        else if (msg.getText().equalsIgnoreCase("hello") || msg.getText().equalsIgnoreCase("hi")) {
             sendText(id, "Hi there!");
         } else if (msg.getText().equalsIgnoreCase("привет") || msg.getText().equalsIgnoreCase("привет!")) {
             sendText(id, "Приветики!");
@@ -145,7 +152,8 @@ public class Bot extends TelegramLongPollingBot {
             waitingForUserResponse = false;
             currentUserWaiting = null;
             selectedTag = null;
-        }else {
+        }
+        else {
             IDontUnderstand(msg, id);
         }
     }
@@ -234,23 +242,7 @@ public class Bot extends TelegramLongPollingBot {
         return connection;
     }
 
-    // Validate & ensure database schema is set up
-//    private static void initializeDatabase() {
-////        String schemaSql = "CREATE TABLE IF NOT EXISTS Tasks (" +
-////                "userID INTEGER NOT NULL, " +
-////                "taskName TEXT NOT NULL, " +
-////                "tag TEXT NOT NULL, " +
-////                "dateCreated TEXT NOT NULL" +
-////                ");";
-////        try (PreparedStatement stmt = getConnection().prepareStatement(schemaSql)) {
-////            stmt.execute();
-////            System.out.println("Ensured database schema is ready.");
-////        } catch (SQLException e) {
-////            e.printStackTrace();
-////            System.err.println("Error while ensuring database schema: " + e.getMessage());
-////        }
-//        System.out.println("Database is assumed to be initialized.");
-//    }
+
 
 
     // Optimized database save function
@@ -293,15 +285,15 @@ public class Bot extends TelegramLongPollingBot {
                 while (rs.next()) {
                     taskCount++;
                     String taskName = rs.getString("taskName");
-                    String tag = rs.getString("tag").equals("red") ? "🔴 Important" : "🟢 Not Important";
+                    String tag = rs.getString("tag").equals("red") ? "🔴" : "🟢";
                     String dateCreated = rs.getString("dateCreated");
 
-                    tasks.append(taskCount).append(". ").append(taskName)
-                            .append(" (").append(tag).append(", Created: ").append(dateCreated).append(")\n");
+                    tasks.append(tag).append(taskCount).append(". ").append(taskName)
+                            .append(" (").append("Created: ").append(dateCreated).append(")\n");
                 }
 
                 if (taskCount == 0) {
-                    sendText(userId, "You don't have any tasks yet. Add a new task using /addtask.");
+                    sendText(userId, "You don't have any tasks yet. Add a new task using \n/addtask.");
                 } else {
                     sendText(userId, tasks.toString());
                 }
@@ -310,6 +302,111 @@ public class Bot extends TelegramLongPollingBot {
         } catch (SQLException e) {
             e.printStackTrace();
             sendText(userId, "An error occurred while retrieving your tasks. Please try again later.");
+        }
+    }
+
+    private void showOnlyOneTagTask(Long userId, String tag) {
+        String sql = "SELECT taskName, tag, dateCreated FROM Tasks WHERE userID = ? and tag = ?;";
+        try (PreparedStatement pstmt = getConnection().prepareStatement(sql)) {
+            pstmt.setLong(1, userId);
+            pstmt.setString(2,tag);
+            try (var rs = pstmt.executeQuery()) {
+                String tagEmoji = "";
+                if(tag.equals("red")){
+                    tagEmoji = " 🔴 ";
+                }
+                else{
+                    tagEmoji = " 🟢 ";
+                }
+                StringBuilder tasks = new StringBuilder("Your " + tagEmoji + " Tasks:\n\n");
+                int taskCount = 0;
+
+                while (rs.next()) {
+                    taskCount++;
+                    String taskName = rs.getString("taskName");
+                    String tagToPrint = rs.getString("tag").equals("red") ? "🔴" : "🟢";
+                    String dateCreated = rs.getString("dateCreated");
+
+                    tasks.append(tagToPrint).append(taskCount).append(". ").append(taskName)
+                            .append(" (").append("Created: ").append(dateCreated).append(")\n");
+                }
+
+                if (taskCount == 0) {
+                    sendText(userId, "You don't have any tasks yet. Add a new task using \n/addtask.");
+                } else {
+                    sendText(userId, tasks.toString());
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            sendText(userId, "An error occurred while retrieving your tasks. Please try again later.");
+        }
+    }
+
+    private void showTasksToRemove(Long userId) {
+        String sql = "SELECT rowid, taskName, tag, dateCreated FROM Tasks WHERE userID = ? ORDER BY CASE WHEN tag = 'red' THEN 1 ELSE 2 END;";
+
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:Tasks.db");
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, userId);
+
+            try (ResultSet rs = stmt.executeQuery()) {//collect all correct rows in the resultset
+                StringBuilder message = new StringBuilder("Select a task number to delete:\n\n");
+                taskIdList.clear();
+                int index = 1;
+
+                while (rs.next()) {//traverse through the resultset
+                    int taskId = rs.getInt("rowid");
+                    String taskName = rs.getString("taskName");
+                    String tag = rs.getString("tag").equals("red") ? "🔴" : "🟢";
+                    String dateCreated = rs.getString("dateCreated");
+
+                    message.append(tag).append(index).append(". ").append(taskName).append(" - ").append(dateCreated).append("\n");
+                    taskIdList.add(taskId);
+                    index++;
+                }
+
+                if (taskIdList.isEmpty()) {
+                    message.append("You have no tasks to remove.");
+                } else {
+                    message.append("\nSend the number of the task to delete.");
+                    waitingForTaskNumber = true;
+                    userWaitingForTaskNumber = userId;
+                }
+
+                sendText(userId, message.toString());
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            sendText(userId, "Failed to fetch tasks.");
+        }
+    }
+    private void removeTask(Long userId, String userInput) {
+        try {
+            int taskNumber = Integer.parseInt(userInput);
+            if (taskNumber >= 1 && taskNumber <= taskIdList.size()) {
+                int taskIdToRemove = taskIdList.get(taskNumber - 1);
+
+                try (Connection conn = DriverManager.getConnection("jdbc:sqlite:Tasks.db");
+                     PreparedStatement stmt = conn.prepareStatement("DELETE FROM Tasks WHERE rowid = ?")) {
+
+                    stmt.setInt(1, taskIdToRemove);
+                    stmt.executeUpdate();
+                    sendText(userId, "Task removed successfully.");
+                }
+
+                waitingForTaskNumber = false;
+                userWaitingForTaskNumber = null;
+                taskIdList.clear();
+            } else {
+                sendText(userId, "Invalid task number. Please try again.");
+            }
+        } catch (NumberFormatException e) {
+            sendText(userId, "Please send a valid number.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            sendText(userId, "Failed to remove task.");
         }
     }
 
