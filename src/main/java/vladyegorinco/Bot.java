@@ -26,9 +26,11 @@ public class Bot extends TelegramLongPollingBot {
 
 
     private String botToken;
+    private String aiPrompt;
     private boolean waitingForUserResponse = false;
     private Long currentUserWaiting = null;
     private String selectedTag = null;
+    private boolean waitingForAIprompt = false;
     private boolean waitingForTaskNumber = false; // Indicates bot is waiting for a task number
     private Long userWaitingForTaskNumber = null; // Tracks the user who is expected to respond
     private List<Integer> taskIdList = new ArrayList<>();
@@ -55,6 +57,7 @@ public class Bot extends TelegramLongPollingBot {
             }
             properties.load(input);
             botToken = properties.getProperty("TELEGRAM_BOT_TOKEN");
+            aiPrompt = properties.getProperty("AI_PROMPT");
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1); // Exit if the configuration file can't be loaded
@@ -99,15 +102,17 @@ public class Bot extends TelegramLongPollingBot {
 
     public void aiResponseTest(Long id, Message msg){
         String airesponse = null;
+        aiPrompt = "Rewrite the task name to sound slightly more advanced while keeping it short. The task name will be either in Russian or English. If the task name is in Russian, respond ONLY in Russian. If the task name is in English, respond ONLY in English. Do not mix languages. Provide ONLY the rewritten task name without any extra text or explanations. Examples: выгулять собаку → прогулка с компаньоном, приготовить ужин → вечернее приготовление еды, peel potatoes → potato skin elimination, walk the dog → Canine Exercise Routine. REMEMBER: Identify the language of the task name and respond in the SAME language, either Russian or English. TASK NAME:";
         String text = msg.getText();
         try {
-            airesponse = groqie.sendMessage(text);
+            airesponse = groqie.sendMessage(aiPrompt+text);
+            System.out.println(aiPrompt+text);
         } catch (IOException e) {
             airesponse = "Sorry, I couldn't process your request. Please try again later.";
             e.printStackTrace();  // Log the error
         }
 
-        System.out.println("Response: " + airesponse);
+        sendText(id,"Response: " + airesponse);
 
         //System.out.println(id + airesponse);  // Send response back to the user
     }
@@ -153,8 +158,8 @@ public class Bot extends TelegramLongPollingBot {
         } else if (msg.getText().equalsIgnoreCase("how are you") || msg.getText().equalsIgnoreCase("how are you?")) {
             sendText(id, "I'm good, thank you!");
         } else if(msg.getText().equalsIgnoreCase("/tryai")){
-
-            aiResponseTest(id, msg);
+            sendText(id,"please send a prompt");
+            waitingForAIprompt = true;
         }
         else if (waitingForUserResponse && currentUserWaiting != null && currentUserWaiting.equals(id)) {
             // Log and process user response
@@ -173,6 +178,9 @@ public class Bot extends TelegramLongPollingBot {
             waitingForUserResponse = false;
             currentUserWaiting = null;
             selectedTag = null;
+        }else if(waitingForAIprompt == true){
+            aiResponseTest(id, msg);
+            waitingForAIprompt = false;
         }
         else {
             IDontUnderstand(msg, id);
