@@ -32,7 +32,7 @@ public class Bot extends TelegramLongPollingBot {
     private boolean waitingForTaskNumber = false; // Indicates bot is waiting for a task number
     private Long userWaitingForTaskNumber = null; // Tracks the user who is expected to respond
     private List<Integer> taskIdList = new ArrayList<>();
-
+    public Groq groqie;
     private final InlineKeyboardButton redTag = InlineKeyboardButton.builder().text("🔴 - Important").callbackData("red").build();
     private final InlineKeyboardButton greenTag = InlineKeyboardButton.builder().text("🟢 - Not Important").callbackData("green").build();
     private final InlineKeyboardMarkup keyboardImportanceTag = InlineKeyboardMarkup.builder().
@@ -47,6 +47,7 @@ public class Bot extends TelegramLongPollingBot {
 
     public Bot() {
         // Load properties from config file in resources folder
+        this.groqie = new Groq();
         Properties properties = new Properties();
         try (InputStream input = getClass().getClassLoader().getResourceAsStream("config.properties")) {
             if (input == null) {
@@ -95,6 +96,22 @@ public class Bot extends TelegramLongPollingBot {
         return botToken;
     }
 
+
+    public void aiResponseTest(Long id, Message msg){
+        String airesponse = null;
+        String text = msg.getText();
+        try {
+            airesponse = groqie.sendMessage(text);
+        } catch (IOException e) {
+            airesponse = "Sorry, I couldn't process your request. Please try again later.";
+            e.printStackTrace();  // Log the error
+        }
+
+        System.out.println("Response: " + airesponse);
+
+        //System.out.println(id + airesponse);  // Send response back to the user
+    }
+
     public void sendText(Long who, String what){
         SendMessage sm = SendMessage.builder()
                 .chatId(who.toString()) //Who are we sending a message to
@@ -135,7 +152,11 @@ public class Bot extends TelegramLongPollingBot {
             sendText(id, "You are welcome!");
         } else if (msg.getText().equalsIgnoreCase("how are you") || msg.getText().equalsIgnoreCase("how are you?")) {
             sendText(id, "I'm good, thank you!");
-        } else if (waitingForUserResponse && currentUserWaiting != null && currentUserWaiting.equals(id)) {
+        } else if(msg.getText().equalsIgnoreCase("/tryai")){
+
+            aiResponseTest(id, msg);
+        }
+        else if (waitingForUserResponse && currentUserWaiting != null && currentUserWaiting.equals(id)) {
             // Log and process user response
             System.out.println("User response received: " + msg.getText());
 
