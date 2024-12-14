@@ -34,7 +34,7 @@ public class Groq {
 
     public String sendMessage(String userInput) throws IOException {
         JSONObject jsonBody = new JSONObject();
-        jsonBody.put("model", "llama3-8b-8192");
+        jsonBody.put("model", "llama-3.3-70b-versatile");
         JSONArray messagesArray = new JSONArray();
         messagesArray.put(new JSONObject().put("role", "user").put("content", userInput));
         jsonBody.put("messages", messagesArray);

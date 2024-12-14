@@ -102,7 +102,7 @@ public class Bot extends TelegramLongPollingBot {
 
     public void aiResponseTest(Long id, Message msg){
         String airesponse = null;
-        aiPrompt = "Rewrite the task name to sound slightly more advanced while keeping it short. The task name will be either in Russian or English. If the task name is in Russian, respond ONLY in Russian. If the task name is in English, respond ONLY in English. Do not mix languages. Provide ONLY the rewritten task name without any extra text or explanations. Examples: выгулять собаку → прогулка с компаньоном, приготовить ужин → вечернее приготовление еды, peel potatoes → potato skin elimination, walk the dog → Canine Exercise Routine. REMEMBER: Identify the language of the task name and respond in the SAME language, either Russian or English. TASK NAME:";
+        aiPrompt = "Rewrite the task name to sound slightly more advanced while keeping it short. The task name will be either in Russian or English. If the task name is in Russian, respond ONLY in Russian. If the task name is in English, respond ONLY in English. Do not mix languages. Provide ONLY the rewritten task name without any extra text or explanations. Examples: выгулять собаку → прогулка с компаньоном, приготовить ужин → вечернее приготовление еды, peel potatoes → potato skin elimination, walk the dog → Canine Exercise Routine. REMEMBER: Identify the language of the task name and respond in the SAME language, either Russian or English. Answer should BEGIN from a capital letter in both languages. TASK NAME:";
         String text = msg.getText();
         try {
             airesponse = groqie.sendMessage(aiPrompt+text);
