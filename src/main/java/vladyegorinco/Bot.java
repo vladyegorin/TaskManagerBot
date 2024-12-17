@@ -3,6 +3,7 @@ package vladyegorinco;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
@@ -34,6 +35,7 @@ public class Bot extends TelegramLongPollingBot {
     private Long currentUserWaiting = null;
     private String selectedTag = null;
     private boolean waitingForAIprompt = false;
+    private Boolean wayOfCallingTask = null;//true if by hand, false if AI
     private boolean waitingForTaskNumber = false; // Indicates bot is waiting for a task number
     private Long userWaitingForTaskNumber = null; // Tracks the user who is expected to respond
     private List<Integer> taskIdList = new ArrayList<>();
@@ -115,7 +117,7 @@ public class Bot extends TelegramLongPollingBot {
     public void sendCustomKeyboard(Long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText("Welcome to Support Bot!\nUse one of the buttons below:");
+        message.setText("Choose one of the options below");
 
         // Define the custom keyboard
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
@@ -216,24 +218,28 @@ public class Bot extends TelegramLongPollingBot {
         } else if(msg.getText().equalsIgnoreCase("/tryai")){
             sendText(id,"please send a prompt");
             waitingForAIprompt = true;
+        } else if(msg.getText().equals("I'll name the task myself")){
+            wayOfCallingTask = true;
+            sendText(id,"Describe the task: ");
         }
-        else if (waitingForUserResponse && currentUserWaiting != null && currentUserWaiting.equals(id)) {
-            // Log and process user response
-//            System.out.println("User response received: " + msg.getText());
-//
-//            // Format the timestamp using the provided helper method
-//            String formattedDate = getFormattedDate(msg.getDate());
-//
-//            // Save the task to the database
-//            saveTaskToDb(id, msg.getText(), selectedTag, formattedDate);
-//
-//            // Send confirmation to the user
-//            sendText(id, "You added a task: " + msg.getText() + "\nSee the list of all tasks by typing \n/showtasklist");
-//
-//            // Reset flags after processing
-//            waitingForUserResponse = false;
-//            currentUserWaiting = null;
-//            selectedTag = null;
+        else if (waitingForUserResponse && currentUserWaiting != null && currentUserWaiting.equals(id)&& wayOfCallingTask) {
+        // Log and process user response
+            System.out.println("User response received: " + msg.getText());
+
+            // Format the timestamp using the provided helper method
+            String formattedDate = getFormattedDate(msg.getDate());
+
+            // Save the task to the database
+            saveTaskToDb(id, msg.getText(), selectedTag, formattedDate);
+
+            // Send confirmation to the user
+            sendText(id, "You added a task: " + msg.getText() + "\nSee the list of all tasks by typing \n/showtasklist");
+
+            // Reset flags after processing
+            waitingForUserResponse = false;
+            currentUserWaiting = null;
+            selectedTag = null;
+            wayOfCallingTask = null;
 
         }else if(waitingForAIprompt == true){
             aiResponseTest(id, msg);
@@ -271,40 +277,39 @@ public class Bot extends TelegramLongPollingBot {
                 .callbackQueryId(queryId)
                 .build();
 
-        EditMessageReplyMarkup clearKeyboard = EditMessageReplyMarkup.builder()
-                .chatId(chatId.toString())
-                .messageId(messageId)
-                .replyMarkup(null)
-                .build();
+        execute(closeQuery);
 
-        String text;
+        String updatedText = "";
         if (data.equals("red")) {
             //text = "Describe the task (🔴 - Important)";
-            text = "Choose one of the options below";
+            //text = "Choose one of the options below";
             selectedTag = "red";
+            updatedText = "✅ You chose: 🔴 Important";
+
             waitingForUserResponse = true;
             currentUserWaiting = chatId; // Set the user who is expected to respond
-            sendCustomKeyboard(callbackQuery.getMessage().getChatId());
+            //sendCustomKeyboard(callbackQuery.getMessage().getChatId());
 
         } else {
             //text = "Describe the task (🟢 - Not Important)";
-            text = "Choose one of the options below";
+            //text = "Choose one of the options below";
             selectedTag = "green";
+            updatedText = "✅ You chose: 🟢 Not Important";
             waitingForUserResponse = true;
             currentUserWaiting = chatId; // Set the user who is expected to respond
-            sendCustomKeyboard(callbackQuery.getMessage().getChatId());
+            //sendCustomKeyboard(callbackQuery.getMessage().getChatId());
         }
-
-        EditMessageText newMessageText = EditMessageText.builder()
-                .chatId(chatId.toString())
-                .messageId(messageId)
-                .text(text)
+        EditMessageText editMessageText = EditMessageText.builder()
+                .chatId(chatId.toString())  // The chat where the message is
+                .messageId(messageId)       // The message ID to update
+                .text(updatedText)          // Updated text
                 .build();
-        //System.out.println(newMessageText);
-        // Execute actions
-        execute(closeQuery);
-        execute(clearKeyboard);
-        execute(newMessageText);
+
+        execute(editMessageText);
+//
+        sendCustomKeyboard(chatId);
+
+        //execute(newMessageText);
     }
 
     private static Connection connection = null; // Singleton connection
@@ -481,6 +486,7 @@ public class Bot extends TelegramLongPollingBot {
             sendText(userId, "Failed to fetch tasks.");
         }
     }
+
     private void removeTask(Long userId, String userInput) {
         try {
             int taskNumber = Integer.parseInt(userInput);
