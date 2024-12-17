@@ -9,7 +9,10 @@ import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.FileNotFoundException;
@@ -41,6 +44,8 @@ public class Bot extends TelegramLongPollingBot {
             keyboardRow(List.of(redTag)).
             keyboardRow(List.of(greenTag)).
             build();
+    //private final ReplyKeyboardMarkup whatis = ReplyKeyboardMarkup.builder().
+
 
     @Override
     public String getBotUsername() {
@@ -100,6 +105,55 @@ public class Bot extends TelegramLongPollingBot {
     }
 
 
+
+
+
+
+
+
+
+    public void sendCustomKeyboard(Long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText("Welcome to Support Bot!\nUse one of the buttons below:");
+
+        // Define the custom keyboard
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        keyboardMarkup.setResizeKeyboard(true); // Adjust keyboard size for user
+        keyboardMarkup.setOneTimeKeyboard(true);
+        // Create keyboard rows
+        List<KeyboardRow> keyboard = new ArrayList<>();
+
+        KeyboardRow row1 = new KeyboardRow();
+        row1.add("Generate task's name with the help of AI 🤖");
+
+
+        KeyboardRow row2 = new KeyboardRow();
+        row2.add("I'll name the task myself");
+
+        KeyboardRow row3 = new KeyboardRow();
+        row3.add("Cancel");
+
+        // Add rows to the keyboard
+        keyboard.add(row1);
+        keyboard.add(row2);
+        keyboard.add(row3);
+
+        // Attach keyboard to the markup
+        keyboardMarkup.setKeyboard(keyboard);
+
+        // Attach the keyboard to the message
+        message.setReplyMarkup(keyboardMarkup);
+
+        // Send the message
+        try {
+            execute(message); // execute() sends the message to the user
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
     public void aiResponseTest(Long id, Message msg){
         String airesponse = null;
         aiPrompt = "Rewrite the task name to sound slightly more advanced while keeping it short. The task name will be either in Russian or English. If the task name is in Russian, respond ONLY in Russian. If the task name is in English, respond ONLY in English. Do not mix languages. Provide ONLY the rewritten task name without any extra text or explanations. Examples: выгулять собаку → прогулка с компаньоном, приготовить ужин → вечернее приготовление еды, peel potatoes → potato skin elimination, walk the dog → Canine Exercise Routine. REMEMBER: Identify the language of the task name and respond in the SAME language, either Russian or English. Answer should BEGIN from a capital letter in both languages. TASK NAME:";
@@ -148,6 +202,8 @@ public class Bot extends TelegramLongPollingBot {
         }
         else if(msg.getText().equals("/shownotimportant")){
             showOnlyOneTagTask(id,"green");
+        } else if(msg.getText().equals("/keyboard")){
+            sendCustomKeyboard(msg.getChatId());
         }
         else if (msg.getText().equalsIgnoreCase("hello") || msg.getText().equalsIgnoreCase("hi")) {
             sendText(id, "Hi there!");
@@ -163,21 +219,22 @@ public class Bot extends TelegramLongPollingBot {
         }
         else if (waitingForUserResponse && currentUserWaiting != null && currentUserWaiting.equals(id)) {
             // Log and process user response
-            System.out.println("User response received: " + msg.getText());
+//            System.out.println("User response received: " + msg.getText());
+//
+//            // Format the timestamp using the provided helper method
+//            String formattedDate = getFormattedDate(msg.getDate());
+//
+//            // Save the task to the database
+//            saveTaskToDb(id, msg.getText(), selectedTag, formattedDate);
+//
+//            // Send confirmation to the user
+//            sendText(id, "You added a task: " + msg.getText() + "\nSee the list of all tasks by typing \n/showtasklist");
+//
+//            // Reset flags after processing
+//            waitingForUserResponse = false;
+//            currentUserWaiting = null;
+//            selectedTag = null;
 
-            // Format the timestamp using the provided helper method
-            String formattedDate = getFormattedDate(msg.getDate());
-
-            // Save the task to the database
-            saveTaskToDb(id, msg.getText(), selectedTag, formattedDate);
-
-            // Send confirmation to the user
-            sendText(id, "You added a task: " + msg.getText() + "\nSee the list of all tasks by typing \n/showtasklist");
-
-            // Reset flags after processing
-            waitingForUserResponse = false;
-            currentUserWaiting = null;
-            selectedTag = null;
         }else if(waitingForAIprompt == true){
             aiResponseTest(id, msg);
             waitingForAIprompt = false;
@@ -222,15 +279,20 @@ public class Bot extends TelegramLongPollingBot {
 
         String text;
         if (data.equals("red")) {
-            text = "Describe the task (🔴 - Important)";
+            //text = "Describe the task (🔴 - Important)";
+            text = "Choose one of the options below";
             selectedTag = "red";
             waitingForUserResponse = true;
             currentUserWaiting = chatId; // Set the user who is expected to respond
+            sendCustomKeyboard(callbackQuery.getMessage().getChatId());
+
         } else {
-            text = "Describe the task (🟢 - Not Important)";
+            //text = "Describe the task (🟢 - Not Important)";
+            text = "Choose one of the options below";
             selectedTag = "green";
             waitingForUserResponse = true;
             currentUserWaiting = chatId; // Set the user who is expected to respond
+            sendCustomKeyboard(callbackQuery.getMessage().getChatId());
         }
 
         EditMessageText newMessageText = EditMessageText.builder()
