@@ -49,6 +49,8 @@ public class Bot extends TelegramLongPollingBot {
             keyboardRow(List.of(redTag)).
             keyboardRow(List.of(greenTag)).
             build();
+
+    String aiResponse = "";
     //private final ReplyKeyboardMarkup whatis = ReplyKeyboardMarkup.builder().
 
 
@@ -252,17 +254,24 @@ public class Bot extends TelegramLongPollingBot {
             willCallItMyself = false;
 
         }else if(waitingForAIprompt){
-            String aiResponse = aiResponseTest(id, msg);
+            aiResponse = aiResponseTest(id, msg);
             sendText(id, "AI came up with this task name: " + aiResponse + "\nDo you like it?");
             waitingForAiAnswerApproval = true;
             waitingForAIprompt = false;
-        } //else if(waitingForAiAnswerApproval )){
-//            if(msg.getText().equalsIgnoreCase("yes"){
-//
-//            } else if(msg.getText().equalsIgnoreCase("no")){
-//
-//            }
-//        }
+        } else if(waitingForAiAnswerApproval){
+            if(msg.getText().equalsIgnoreCase("yes")){
+                String formattedDate = getFormattedDate(msg.getDate());
+
+                // Save the task to the database
+                saveTaskToDb(id, aiResponse, selectedTag, formattedDate);
+
+                // Send confirmation to the user
+                sendText(id, "You added a task: " + aiResponse + "\nSee the list of all tasks by typing \n/showtasklist");
+            }else if(msg.getText().equalsIgnoreCase("no")){
+                System.out.println("user said no");
+            }
+            waitingForAiAnswerApproval = false;
+        }
         else {
             IDontUnderstand(msg, id);
         }
