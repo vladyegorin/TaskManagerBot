@@ -161,8 +161,48 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
+    public void sendYesOrNoKeyboard(Long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText("Choose one of the options below");
 
-    public String aiResponseTest(Long id, Message msg){
+        // Define the custom keyboard
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        keyboardMarkup.setResizeKeyboard(true); // Adjust keyboard size for user
+        keyboardMarkup.setOneTimeKeyboard(true);
+        // Create keyboard rows
+        List<KeyboardRow> keyboard = new ArrayList<>();
+
+        KeyboardRow row1 = new KeyboardRow();
+        row1.add("Yes");
+
+
+        KeyboardRow row2 = new KeyboardRow();
+        row2.add("No");
+
+
+
+        // Add rows to the keyboard
+        keyboard.add(row1);
+        keyboard.add(row2);
+
+
+        // Attach keyboard to the markup
+        keyboardMarkup.setKeyboard(keyboard);
+
+        // Attach the keyboard to the message
+        message.setReplyMarkup(keyboardMarkup);
+
+        // Send the message
+        try {
+            execute(message); // execute() sends the message to the user
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public String aiResponse(Long id, Message msg){
         String airesponse = null;
         aiPrompt = "Rewrite the task name to sound slightly more advanced while keeping it short. The task name will be either in Russian or English. If the task name is in Russian, respond ONLY in Russian. If the task name is in English, respond ONLY in English. Do not mix languages. Provide ONLY the rewritten task name without any extra text or explanations. Examples: выгулять собаку → прогулка с компаньоном, приготовить ужин → вечернее приготовление еды, peel potatoes → potato skin elimination, walk the dog → Canine Exercise Routine. REMEMBER: Identify the language of the task name and respond in the SAME language, either Russian or English. Answer should BEGIN from a capital letter in both languages. TASK NAME:";
         String text = msg.getText();
@@ -254,8 +294,9 @@ public class Bot extends TelegramLongPollingBot {
             willCallItMyself = false;
 
         }else if(waitingForAIprompt){
-            aiResponse = aiResponseTest(id, msg);
+            aiResponse = aiResponse(id, msg);
             sendText(id, "AI came up with this task name: " + aiResponse + "\nDo you like it?");
+            sendYesOrNoKeyboard(msg.getChatId());
             waitingForAiAnswerApproval = true;
             waitingForAIprompt = false;
         } else if(waitingForAiAnswerApproval){
