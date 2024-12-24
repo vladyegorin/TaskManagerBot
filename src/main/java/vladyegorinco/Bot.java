@@ -35,9 +35,12 @@ public class Bot extends TelegramLongPollingBot {
     private Long currentUserWaiting = null;
     private String selectedTag = null;
     private boolean waitingForAIprompt = false;
-    private Boolean wayOfCallingTask = null;//true if by hand, false if AI
+    //private Boolean wayOfCallingTask = null;//true if by hand, false if AI
     private boolean waitingForTaskNumber = false; // Indicates bot is waiting for a task number
     private Long userWaitingForTaskNumber = null; // Tracks the user who is expected to respond
+    private boolean waitingForAiAnswerApproval = false;
+    private boolean waitingForWayOfNamingTask = false;
+    private boolean willCallItMyself = false;
     private List<Integer> taskIdList = new ArrayList<>();
     public Groq groqie;
     private final InlineKeyboardButton redTag = InlineKeyboardButton.builder().text("🔴 - Important").callbackData("red").build();
@@ -52,6 +55,7 @@ public class Bot extends TelegramLongPollingBot {
     @Override
     public String getBotUsername() {
         return "dailytaskmanager_bot";
+
     }
 
     public Bot() {
@@ -114,7 +118,7 @@ public class Bot extends TelegramLongPollingBot {
 
 
 
-    public void sendCustomKeyboard(Long chatId) {
+    public void sendWayOfNamingTaskKeyboard(Long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText("Choose one of the options below");
@@ -156,7 +160,7 @@ public class Bot extends TelegramLongPollingBot {
     }
 
 
-    public void aiResponseTest(Long id, Message msg){
+    public String aiResponseTest(Long id, Message msg){
         String airesponse = null;
         aiPrompt = "Rewrite the task name to sound slightly more advanced while keeping it short. The task name will be either in Russian or English. If the task name is in Russian, respond ONLY in Russian. If the task name is in English, respond ONLY in English. Do not mix languages. Provide ONLY the rewritten task name without any extra text or explanations. Examples: выгулять собаку → прогулка с компаньоном, приготовить ужин → вечернее приготовление еды, peel potatoes → potato skin elimination, walk the dog → Canine Exercise Routine. REMEMBER: Identify the language of the task name and respond in the SAME language, either Russian or English. Answer should BEGIN from a capital letter in both languages. TASK NAME:";
         String text = msg.getText();
@@ -168,8 +172,8 @@ public class Bot extends TelegramLongPollingBot {
             e.printStackTrace();  // Log the error
         }
 
-        sendText(id,"Response: " + airesponse);
-
+        //sendText(id,"Response: " + airesponse);
+        return airesponse;
         //System.out.println(id + airesponse);  // Send response back to the user
     }
 
@@ -205,7 +209,7 @@ public class Bot extends TelegramLongPollingBot {
         else if(msg.getText().equals("/shownotimportant")){
             showOnlyOneTagTask(id,"green");
         } else if(msg.getText().equals("/keyboard")){
-            sendCustomKeyboard(msg.getChatId());
+            sendWayOfNamingTaskKeyboard(msg.getChatId());
         }
         else if (msg.getText().equalsIgnoreCase("hello") || msg.getText().equalsIgnoreCase("hi")) {
             sendText(id, "Hi there!");
@@ -216,13 +220,19 @@ public class Bot extends TelegramLongPollingBot {
         } else if (msg.getText().equalsIgnoreCase("how are you") || msg.getText().equalsIgnoreCase("how are you?")) {
             sendText(id, "I'm good, thank you!");
         } else if(msg.getText().equalsIgnoreCase("/tryai")){
-            sendText(id,"please send a prompt");
+
             waitingForAIprompt = true;
-        } else if(msg.getText().equals("I'll name the task myself")){
-            wayOfCallingTask = true;
+        } else if(msg.getText().equals("I'll name the task myself") && waitingForWayOfNamingTask){
+            willCallItMyself = true;
             sendText(id,"Describe the task: ");
+        } else if(msg.getText().equals("Generate task's name with the help of AI 🤖") && waitingForWayOfNamingTask){
+
+            sendText(id,"Describe the task for AI to improve it: ");
+            waitingForAIprompt = true;
+
+
         }
-        else if (waitingForUserResponse && currentUserWaiting != null && currentUserWaiting.equals(id)&& wayOfCallingTask) {
+        else if (waitingForUserResponse && currentUserWaiting != null && currentUserWaiting.equals(id) && willCallItMyself) {
         // Log and process user response
             System.out.println("User response received: " + msg.getText());
 
@@ -239,12 +249,20 @@ public class Bot extends TelegramLongPollingBot {
             waitingForUserResponse = false;
             currentUserWaiting = null;
             selectedTag = null;
-            wayOfCallingTask = null;
+            willCallItMyself = false;
 
-        }else if(waitingForAIprompt == true){
-            aiResponseTest(id, msg);
+        }else if(waitingForAIprompt){
+            String aiResponse = aiResponseTest(id, msg);
+            sendText(id, "AI came up with this task name: " + aiResponse + "\nDo you like it?");
+            waitingForAiAnswerApproval = true;
             waitingForAIprompt = false;
-        }
+        } //else if(waitingForAiAnswerApproval )){
+//            if(msg.getText().equalsIgnoreCase("yes"){
+//
+//            } else if(msg.getText().equalsIgnoreCase("no")){
+//
+//            }
+//        }
         else {
             IDontUnderstand(msg, id);
         }
@@ -288,6 +306,7 @@ public class Bot extends TelegramLongPollingBot {
 
             waitingForUserResponse = true;
             currentUserWaiting = chatId; // Set the user who is expected to respond
+            waitingForWayOfNamingTask = true;
             //sendCustomKeyboard(callbackQuery.getMessage().getChatId());
 
         } else {
@@ -297,6 +316,7 @@ public class Bot extends TelegramLongPollingBot {
             updatedText = "✅ You chose: 🟢 Not Important";
             waitingForUserResponse = true;
             currentUserWaiting = chatId; // Set the user who is expected to respond
+            waitingForWayOfNamingTask = true;
             //sendCustomKeyboard(callbackQuery.getMessage().getChatId());
         }
         EditMessageText editMessageText = EditMessageText.builder()
@@ -307,7 +327,7 @@ public class Bot extends TelegramLongPollingBot {
 
         execute(editMessageText);
 //
-        sendCustomKeyboard(chatId);
+        sendWayOfNamingTaskKeyboard(chatId);
 
         //execute(newMessageText);
     }
