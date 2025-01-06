@@ -36,7 +36,6 @@ public class Bot extends TelegramLongPollingBot {
     private String selectedTag = null;
     private boolean waitingForAIprompt = false;
     private Message startUserTaskName;
-    //private Boolean wayOfCallingTask = null;//true if by hand, false if AI
     private boolean waitingForTaskNumber = false; // Indicates bot is waiting for a task number
     private Long userWaitingForTaskNumber = null; // Tracks the user who is expected to respond
     private boolean waitingForAiAnswerApproval = false;
@@ -51,8 +50,8 @@ public class Bot extends TelegramLongPollingBot {
             keyboardRow(List.of(greenTag)).
             build();
 
-    String aiResponse = "";
-    //private final ReplyKeyboardMarkup whatis = ReplyKeyboardMarkup.builder().
+    private String aiResponse;
+
 
 
     @Override
@@ -112,14 +111,6 @@ public class Bot extends TelegramLongPollingBot {
     public String getBotToken() {
         return botToken;
     }
-
-
-
-
-
-
-
-
 
     public void sendWayOfNamingTaskKeyboard(Long chatId) {
         SendMessage message = new SendMessage();
@@ -181,11 +172,14 @@ public class Bot extends TelegramLongPollingBot {
         KeyboardRow row2 = new KeyboardRow();
         row2.add("Generate the task name again");
 
+        KeyboardRow row3 = new KeyboardRow();
+        row3.add("Cancel");
 
 
         // Add rows to the keyboard
         keyboard.add(row1);
         keyboard.add(row2);
+        keyboard.add(row3);
 
 
         // Attach keyboard to the markup
@@ -262,9 +256,6 @@ public class Bot extends TelegramLongPollingBot {
             sendText(id, "You are welcome!");
         } else if (msg.getText().equalsIgnoreCase("how are you") || msg.getText().equalsIgnoreCase("how are you?")) {
             sendText(id, "I'm good, thank you!");
-        } else if(msg.getText().equalsIgnoreCase("/tryai")){
-
-            waitingForAIprompt = true;
         } else if(msg.getText().equals("I'll name the task myself") && waitingForWayOfNamingTask){
             willCallItMyself = true;
             sendText(id,"Describe the task: ");
@@ -297,12 +288,7 @@ public class Bot extends TelegramLongPollingBot {
 
         }else if(waitingForAIprompt){
             startUserTaskName = msg;
-            aiResponse = aiResponse(id, startUserTaskName);
-
-            sendText(id, "AI came up with this task name: " + aiResponse + "\nDo you like it?");
-            sendYesOrNoKeyboard(msg.getChatId());
-            waitingForAiAnswerApproval = true;
-            waitingForAIprompt = false;
+            aiGenerates(id,startUserTaskName);
         } else if(waitingForAiAnswerApproval){
             if(msg.getText().equalsIgnoreCase("yes")){
                 String formattedDate = getFormattedDate(msg.getDate());
@@ -314,16 +300,23 @@ public class Bot extends TelegramLongPollingBot {
                 sendText(id, "You added a task: " + aiResponse + "\nSee the list of all tasks by typing \n/showtasklist");
                 waitingForAiAnswerApproval = false;
             }else if(msg.getText().equalsIgnoreCase("generate the task name again")){
-                aiGeneratesAgain(id,startUserTaskName);
+                aiGenerates(id,startUserTaskName);
             }
-
+            else if(msg.getText().equalsIgnoreCase("cancel")){
+                waitingForAiAnswerApproval = false;
+            }
+        } else if(msg.getText().equalsIgnoreCase("cancel")&& waitingForWayOfNamingTask){
+            waitingForUserResponse = false;
+            currentUserWaiting = null;
+            selectedTag = null;
+            willCallItMyself = false;
         }
         else {
             IDontUnderstand(msg, id);
         }
     }
 
-    public void aiGeneratesAgain(Long id, Message msg){
+    public void aiGenerates(Long id, Message msg){
         aiResponse = aiResponse(id, startUserTaskName);
         System.out.println(startUserTaskName);
         sendText(id, "AI came up with this task name: " + aiResponse + "\nDo you like it?");
