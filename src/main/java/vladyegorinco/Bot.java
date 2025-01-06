@@ -239,14 +239,12 @@ public class Bot extends TelegramLongPollingBot {
         }  else if (msg.getText().equals("/showtasklist")) {
             printTasks(id);
         } else if (msg.getText().equals("/help")) {
-            sendText(id, "/addtask - Add a task\n/removetask - Remove a task\n/showtasklist - Show list of tasks");//update
+            sendText(id, "/addtask - Add a task\n/removetask - Remove a task\n/showtasklist - Show list of tasks\n/showimportant - Show list of IMPORTANT tasks\n/shownotimportant - Show list of NOT IMPORTANT tasks");//update
         } else if(msg.getText().equals("/showimportant")){
             showOnlyOneTagTask(id,"red");
         }
         else if(msg.getText().equals("/shownotimportant")){
             showOnlyOneTagTask(id,"green");
-        } else if(msg.getText().equals("/keyboard")){
-            sendWayOfNamingTaskKeyboard(msg.getChatId());
         }
         else if (msg.getText().equalsIgnoreCase("hello") || msg.getText().equalsIgnoreCase("hi")) {
             sendText(id, "Hi there!");
