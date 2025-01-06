@@ -35,6 +35,7 @@ public class Bot extends TelegramLongPollingBot {
     private Long currentUserWaiting = null;
     private String selectedTag = null;
     private boolean waitingForAIprompt = false;
+    private Message startUserTaskName;
     //private Boolean wayOfCallingTask = null;//true if by hand, false if AI
     private boolean waitingForTaskNumber = false; // Indicates bot is waiting for a task number
     private Long userWaitingForTaskNumber = null; // Tracks the user who is expected to respond
@@ -178,7 +179,7 @@ public class Bot extends TelegramLongPollingBot {
 
 
         KeyboardRow row2 = new KeyboardRow();
-        row2.add("No");
+        row2.add("Generate the task name again");
 
 
 
@@ -270,6 +271,7 @@ public class Bot extends TelegramLongPollingBot {
         } else if(msg.getText().equals("Generate task's name with the help of AI 🤖") && waitingForWayOfNamingTask){
 
             sendText(id,"Describe the task for AI to improve it: ");
+
             waitingForAIprompt = true;
 
 
@@ -294,7 +296,9 @@ public class Bot extends TelegramLongPollingBot {
             willCallItMyself = false;
 
         }else if(waitingForAIprompt){
-            aiResponse = aiResponse(id, msg);
+            startUserTaskName = msg;
+            aiResponse = aiResponse(id, startUserTaskName);
+
             sendText(id, "AI came up with this task name: " + aiResponse + "\nDo you like it?");
             sendYesOrNoKeyboard(msg.getChatId());
             waitingForAiAnswerApproval = true;
@@ -308,17 +312,25 @@ public class Bot extends TelegramLongPollingBot {
 
                 // Send confirmation to the user
                 sendText(id, "You added a task: " + aiResponse + "\nSee the list of all tasks by typing \n/showtasklist");
-            }else if(msg.getText().equalsIgnoreCase("no")){
-                System.out.println("user said no");
+                waitingForAiAnswerApproval = false;
+            }else if(msg.getText().equalsIgnoreCase("generate the task name again")){
+                aiGeneratesAgain(id,startUserTaskName);
             }
-            waitingForAiAnswerApproval = false;
+
         }
         else {
             IDontUnderstand(msg, id);
         }
     }
 
-
+    public void aiGeneratesAgain(Long id, Message msg){
+        aiResponse = aiResponse(id, startUserTaskName);
+        System.out.println(startUserTaskName);
+        sendText(id, "AI came up with this task name: " + aiResponse + "\nDo you like it?");
+        sendYesOrNoKeyboard(msg.getChatId());
+        waitingForAiAnswerApproval = true;
+        waitingForAIprompt = false;
+    }
     public void sendMenu(Long who, String txt, InlineKeyboardMarkup kb){
         SendMessage sm = SendMessage.builder().chatId(who.toString())
                 .parseMode("HTML").text(txt)
